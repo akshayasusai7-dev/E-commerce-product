@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5ef">
+  <title>Weekwise | Timetable analysis</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5f5ef;
+      --surface: #fffefa;
+      --ink: #182d29;
+      --muted: #75827b;
+      --line: #e6e9e0;
+      --green: #176b54;
+      --green-dark: #103f35;
+      --mint: #dcefe5;
+      --blue: #dce9f3;
+      --blue-ink: #365f7d;
+      --yellow: #f6edc9;
+      --yellow-ink: #786127;
+      --coral: #f5dfd7;
+      --coral-ink: #934b39;
+      --violet: #e7e3f2;
+      --violet-ink: #61567e;
+      --grid-hour: 58px;
+      --display: Georgia, 'Times New Roman', serif;
+      --ui: 'Aptos', 'Segoe UI', sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 14px/1.45 var(--ui); }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 218px minmax(0, 1fr); }
+    .rail { background: var(--green-dark); color: #f5f5ef; padding: 27px 16px 18px; display: flex; flex-direction: column; }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 9px; font-weight: 700; letter-spacing: .2px; font-size: 16px; }
+    .brand-mark { width: 30px; height: 30px; display: grid; place-items: center; background: #d4e978; border-radius: 9px; color: #143a31; }
+    .brand-mark svg { width: 17px; height: 17px; }
+    .rail-label { margin: 43px 10px 12px; color: #9db5aa; font-size: 10px; font-weight: 700; letter-spacing: 1.25px; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav-item { min-height: 42px; display: flex; align-items: center; gap: 12px; padding: 0 11px; border: 0; border-radius: 7px; background: transparent; color: #d2dfd7; text-align: left; cursor: pointer; }
+    .nav-item svg { width: 17px; height: 17px; opacity: .78; }
+    .nav-item.active { background: #245649; color: white; }
+    .nav-item.active svg { color: #d4e978; opacity: 1; }
+    .rail-bottom { margin-top: auto; padding: 15px 10px 4px; border-top: 1px solid #31574d; color: #a8beb4; font-size: 12px; }
+    .profile { display: flex; align-items: center; gap: 10px; margin-top: 14px; color: #f2f5ef; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: #d0a778; color: #18382e; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+    .main { min-width: 0; padding: 24px 30px 34px; }
+    .topline { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .crumb { color: var(--muted); font-size: 12px; }
+    .crumb strong { color: var(--ink); font-weight: 600; }
+    .top-actions { display: flex; gap: 9px; }
+    .button { height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; padding: 0 12px; border: 1px solid #d8ded5; background: var(--surface); cursor: pointer; font-weight: 600; font-size: 12px; transition: transform .15s ease, background .15s ease; }
+    .button:hover { background: #f0f4ed; transform: translateY(-1px); }
+    .button.primary { background: var(--green); border-color: var(--green); color: white; }
+    .button.primary:hover { background: #125d49; }
+    .button svg { width: 15px; height: 15px; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 25px 0 20px; }
+    .eyebrow { color: var(--green); font-size: 10px; line-height: 1; letter-spacing: 1.35px; text-transform: uppercase; font-weight: 800; }
+    h1 { margin: 8px 0 0; font: 400 34px/1.12 var(--display); letter-spacing: 0; }
+    .intro-note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+    .date-nav { display: flex; align-items: center; gap: 7px; }
+    .date-label { min-width: 150px; text-align: center; font-size: 12px; font-weight: 650; }
+    .icon-button { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; }
+    .icon-button:hover { background: #edf2ea; }
+    .icon-button svg { width: 15px; height: 15px; }
+    .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; margin-bottom: 17px; }
+    .metric { min-height: 88px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; padding: 14px 15px 12px; position: relative; overflow: hidden; }
+    .metric:after { content: ''; width: 42px; height: 42px; position: absolute; right: -15px; top: -18px; border-radius: 50%; background: var(--metric-tint, #e9f0e8); }
+    .metric-top { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+    .metric-value { margin-top: 5px; font: 400 25px/1 var(--display); letter-spacing: 0; }
+    .metric-foot { margin-top: 5px; font-size: 10px; color: var(--muted); }
+    .metric.warn .metric-value, .metric.warn .metric-top { color: #a64e39; }
+    .workspace-grid { display: grid; grid-template-columns: minmax(450px, 1fr) 270px; gap: 15px; align-items: start; }
+    .panel { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; }
+    .schedule-panel { overflow: hidden; }
+    .panel-head { min-height: 62px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--line); }
+    .panel-title { font: 400 18px/1.1 var(--display); }
+    .panel-subtitle { color: var(--muted); font-size: 10px; margin-top: 4px; }
+    .controls { display: flex; align-items: center; gap: 7px; }
+    .select-wrap { position: relative; }
+    select { appearance: none; height: 32px; border: 1px solid var(--line); border-radius: 5px; padding: 0 26px 0 9px; background: #fffefa; color: #4d5d55; font-size: 10px; cursor: pointer; }
+    .select-wrap:after { content: ''; pointer-events: none; position: absolute; right: 9px; top: 12px; border: 4px solid transparent; border-top-color: #748078; }
+    .segmented { display: flex; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: #f6f7f2; }
+    .segment { border: 0; background: transparent; color: var(--muted); padding: 5px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+    .segment.selected { background: white; color: var(--ink); box-shadow: 0 1px 3px #1c35260d; font-weight: 700; }
+    .calendar-scroll { overflow-x: auto; }
+    .calendar { min-width: 720px; }
+    .day-heads { display: grid; grid-template-columns: 48px repeat(6, minmax(0, 1fr)); height: 49px; border-bottom: 1px solid var(--line); }
+    .day-head { display: flex; flex-direction: column; justify-content: center; align-items: center; border-left: 1px solid #edf0e9; gap: 1px; }
+    .day-name { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; font-weight: 700; }
+    .day-date { font-size: 12px; font-weight: 700; }
+    .day-head.today .day-date { color: var(--green); }
+    .calendar-body { display: grid; grid-template-columns: 48px minmax(0, 1fr); }
+    .time-labels { height: calc(var(--grid-hour) * 10); position: relative; }
+    .time-label { position: absolute; right: 8px; transform: translateY(-50%); color: #8b968e; font-size: 9px; white-space: nowrap; }
+    .days-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: relative; height: calc(var(--grid-hour) * 10); }
+    .day-column { border-left: 1px solid #edf0e9; position: relative; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--grid-hour) - 1px), #edf0e9 calc(var(--grid-hour) - 1px), #edf0e9 var(--grid-hour)); }
+    .event { position: absolute; z-index: 1; padding: 7px 7px 5px; border-radius: 4px; overflow: hidden; border-left: 3px solid var(--event-border); background: var(--event-bg); color: var(--event-ink); min-width: 0; box-shadow: 0 1px 2px #18382e0c; }
+    .event.clash { outline: 1px solid #d67a5f; z-index: 3; }
+    .event-name { font-size: 10px; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+    .event-time { margin-top: 4px; font-size: 9px; opacity: .78; white-space: nowrap; }
+    .event-room { margin-top: 2px; font-size: 9px; opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .event-badge { position: absolute; right: 5px; top: 5px; width: 14px; height: 14px; border-radius: 50%; background: #fff7f1; color: #a64e39; font-size: 10px; display: grid; place-items: center; font-weight: 800; }
+    .calendar-foot { display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    .legend { display: flex; align-items: center; gap: 6px; }
+    .swatch { width: 8px; height: 8px; border-radius: 2px; background: var(--swatch); }
+    .foot-spacer { flex: 1; }
+    .clash-key { display: flex; align-items: center; gap: 5px; color: #a64e39; }
+    .insights { display: grid; gap: 14px; }
+    .insight-panel { padding: 15px; }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 12px; }
+    .section-heading small { color: var(--muted); font-size: 9px; font-weight: 500; }
+    .workload-head { display: flex; justify-content: space-between; align-items: baseline; margin: 17px 0 7px; }
+    .workload-head strong { font: 400 27px/1 var(--display); }
+    .workload-head span { font-size: 10px; color: var(--muted); }
+    .progress { height: 7px; border-radius: 9px; background: #edf0e9; overflow: hidden; }
+    .progress-fill { width: 0; height: 100%; background: var(--green); border-radius: inherit; transition: width .35s ease; }
+    .progress-caption { display: flex; justify-content: space-between; margin-top: 6px; color: var(--muted); font-size: 9px; }
+    .bar-chart { display: grid; gap: 12px; margin-top: 17px; }
+    .bar-row { display: grid; grid-template-columns: 66px 1fr 27px; gap: 8px; align-items: center; font-size: 10px; }
+    .bar-name { color: #65736a; }
+    .bar-track { height: 6px; border-radius: 8px; background: #eff1eb; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: inherit; width: 0; transition: width .35s ease; }
+    .bar-count { text-align: right; color: #4c5b52; font-weight: 700; }
+    .separator { height: 1px; margin: 16px 0; background: var(--line); }
+    .free-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid #eff1eb; }
+    .free-row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .free-day { font-size: 10px; color: #5c6a62; }
+    .free-hours { font-size: 10px; font-weight: 700; }
+    .tip { background: #eef4e9; border-color: #e4ebdb; }
+    .tip-line { display: flex; gap: 9px; margin-top: 10px; color: #556a5b; font-size: 10px; line-height: 1.5; }
+    .tip-icon { flex: 0 0 23px; width: 23px; height: 23px; display: grid; place-items: center; background: #dce9ce; color: #466642; border-radius: 50%; font-size: 12px; }
+    .empty-state { position: absolute; inset: 0; display: grid; place-items: center; color: #89958c; font-size: 11px; pointer-events: none; }
+    dialog { width: min(420px, calc(100vw - 28px)); border: 1px solid var(--line); border-radius: 8px; padding: 0; color: var(--ink); box-shadow: 0 24px 80px #122c2440; }
+    dialog::backdrop { background: #142a2380; backdrop-filter: blur(2px); }
+    .dialog-head { padding: 19px 21px 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: start; }
+    .dialog-head h2 { margin: 0; font: 400 24px/1.1 var(--display); }
+    .dialog-head p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+    .dialog-body { padding: 17px 21px 20px; display: grid; gap: 13px; }
+    .field { display: grid; gap: 5px; }
+    .field label { color: #5c6a62; font-weight: 700; font-size: 10px; }
+    .field input, .field select { width: 100%; height: 37px; padding: 0 10px; border: 1px solid #dfe4dc; border-radius: 5px; color: var(--ink); background: white; font-size: 12px; }
+    .field select { appearance: auto; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dialog-actions { display: flex; justify-content: end; gap: 8px; margin-top: 4px; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; background: var(--green-dark); color: white; border-radius: 6px; padding: 10px 14px; font-size: 11px; transition: .2s ease; z-index: 10; }
+    .toast.show { transform: translate(-50%, 0); opacity: 1; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1120px) {
+      .main { padding: 21px 20px 28px; }
+      .workspace-grid { grid-template-columns: minmax(450px, 1fr) 240px; gap: 11px; }
+      .summary { gap: 8px; }
+      .metric { padding-left: 12px; }
+      .controls { gap: 5px; }
+      .panel-head { padding-left: 12px; padding-right: 12px; }
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 64px minmax(0, 1fr); }
+      .rail { padding: 20px 9px 15px; align-items: center; }
+      .brand { padding: 0; }
+      .brand-name, .rail-label, .nav-label, .rail-bottom .profile-name, .rail-bottom > span { display: none; }
+      .nav { width: 100%; margin-top: 38px; }
+      .nav-item { justify-content: center; padding: 0; }
+      .nav-item svg { width: 19px; height: 19px; }
+      .rail-bottom { width: 100%; padding: 13px 0 0; display: flex; justify-content: center; }
+      .profile { margin: 0; }
+      .workspace-grid { grid-template-columns: minmax(0, 1fr); }
+      .insights { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .insight-panel:last-child { grid-column: span 2; }
+    }
+    @media (max-width: 620px) {
+      .shell { display: block; }
+      .rail { height: 57px; padding: 0 14px; flex-direction: row; justify-content: space-between; }
+      .brand { gap: 8px; }
+      .brand-name { display: block; font-size: 14px; }
+      .rail-label, .rail-bottom { display: none; }
+      .nav { width: auto; margin: 0; display: flex; gap: 2px; }
+      .nav-item { min-height: 37px; width: 37px; }
+      .nav-item:nth-child(n+3) { display: none; }
+      .main { padding: 14px 12px 22px; }
+      .topline { padding-bottom: 12px; }
+      .top-actions .button:not(.primary) { display: none; }
+      .button { height: 35px; padding: 0 9px; }
+      .intro { display: block; padding: 20px 0 15px; }
+      h1 { font-size: 30px; }
+      .date-nav { margin-top: 14px; justify-content: flex-start; }
+      .date-label { min-width: 155px; text-align: left; }
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-bottom: 11px; }
+      .metric { min-height: 79px; padding: 11px 12px 9px; }
+      .metric-value { font-size: 23px; }
+      .workspace-grid { gap: 11px; }
+      .panel-head { align-items: flex-start; min-height: 78px; flex-wrap: wrap; padding: 11px 10px; }
+      .panel-title { font-size: 17px; }
+      .controls { width: 100%; justify-content: space-between; }
+      .controls select { height: 29px; }
+      .calendar { min-width: 700px; }
+      .insights { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+      .insight-panel:last-child { grid-column: auto; }
+      .calendar-foot { gap: 10px; flex-wrap: wrap; }
+      .foot-spacer { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail" aria-label="Main navigation">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h3m2 0h3"/></svg></span>
+        <span class="brand-name">weekwise</span>
+      </div>
+      <div class="rail-label">Workspace</div>
+      <nav class="nav">
+        <button class="nav-item active" type="button" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4m8-4v4M3 9h18M8 13h3m2 0h3m-8 4h3"/></svg><span class="nav-label">Timetable</span></button>
+        <button class="nav-item" type="button" id="insightsNav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5m0 14h17M8 16v-4m5 4V7m5 9v-6"/></svg><span class="nav-label">Analysis</span></button>
+        <button class="nav-item" type="button" id="coursesNav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21V5.5Z"/><path d="M4 6h13m-8 4h7m-7 4h5"/></svg><span class="nav-label">Courses</span></button>
+        <button class="nav-item" type="button" id="settingsNav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.2 1-1.5 2.6-1.5-.6a8 8 0 0 1-1.5.9l-.3 1.6h-3l-.3-1.6a8 8 0 0 1-1.5-.9l-1.5.6-1.5-2.6 1.2-1a7 7 0 0 1 0-1.8l-1.2-1 1.5-2.6 1.5.6a8 8 0 0 1 1.5-.9l.3-1.6h3l.3 1.6a8 8 0 0 1 1.5.9l1.5-.6 1.5 2.6-1.2 1a7 7 0 0 1 0 1.8Z" transform="translate(-1 -1)"/></svg><span class="nav-label">Settings</span></button>
+      </nav>
+      <div class="rail-bottom">
+        <span>STUDENT PLAN</span>
+        <div class="profile"><div class="avatar">AM</div><div class="profile-name">Alex Morgan<br><span style="font-size:10px;color:#9db5aa">Computer Science</span></div></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topline">
+        <div class="crumb">My workspace <span aria-hidden="true"> / </span> <strong>Timetable</strong></div>
+        <div class="top-actions">
+          <button class="button" id="exportBtn" type="button" title="Download your timetable as CSV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>Export CSV</span></button>
+          <button class="button primary" id="addBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span>Add class</span></button>
+        </div>
+      </div>
+
+      <section class="intro" aria-labelledby="pageTitle">
+        <div><div class="eyebrow">Your semester, in focus</div><h1 id="pageTitle">Week at a glance</h1><div class="intro-note">A clearer view of where your study time goes.</div></div>
+        <div class="date-nav" aria-label="Week navigation">
+          <button class="icon-button" id="prevWeek" type="button" aria-label="Previous week" title="Previous week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg></button>
+          <button class="button" id="todayBtn" type="button">This week</button>
+          <button class="icon-button" id="nextWeek" type="button" aria-label="Next week" title="Next week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></button>
+          <span class="date-label" id="weekLabel"></span>
+        </div>
+      </section>
+
+      <section class="summary" aria-label="Weekly summary">
+        <div class="metric" style="--metric-tint:#e5f0e6"><div class="metric-top">Scheduled class time</div><div class="metric-value" id="scheduledMetric">—</div><div class="metric-foot">across your week</div></div>
+        <div class="metric" style="--metric-tint:#e6edf3"><div class="metric-top">Open time</div><div class="metric-value" id="openMetric">—</div><div class="metric-foot">within your study day</div></div>
+        <div class="metric" style="--metric-tint:#f6edc9"><div class="metric-top">Longest free stretch</div><div class="metric-value" id="stretchMetric">—</div><div class="metric-foot" id="stretchFoot">ready for focused work</div></div>
+        <div class="metric" id="clashMetricCard" style="--metric-tint:#f5dfd7"><div class="metric-top">Schedule clashes</div><div class="metric-value" id="clashMetric">—</div><div class="metric-foot" id="clashFoot">overlapping classes</div></div>
+      </section>
+
+      <div class="workspace-grid">
+        <section class="panel schedule-panel" aria-labelledby="scheduleTitle">
+          <div class="panel-head">
+            <div><div class="panel-title" id="scheduleTitle">Class schedule</div><div class="panel-subtitle">Monday to Saturday · 8:00 AM – 6:00 PM</div></div>
+            <div class="controls">
+              <label class="select-wrap"><span class="sr-only" hidden>Filter by class type</span><select id="categoryFilter" aria-label="Filter by class type"><option value="all">All classes</option><option value="Lecture">Lectures</option><option value="Lab">Labs</option><option value="Seminar">Seminars</option><option value="Tutorial">Tutorials</option></select></label>
+              <div class="segmented" role="group" aria-label="Calendar view"><button class="segment selected" data-view="week" type="button" aria-pressed="true">Week</button><button class="segment" data-view="day" type="button" aria-pressed="false">Day</button></div>
+            </div>
+          </div>
+          <div class="calendar-scroll"><div class="calendar">
+            <div class="day-heads" id="dayHeads"><div></div></div>
+            <div class="calendar-body">
+              <div class="time-labels" id="timeLabels" aria-hidden="true"></div>
+              <div class="days-grid" id="daysGrid" aria-label="Weekly class calendar"></div>
+            </div>
+          </div></div>
+          <div class="calendar-foot">
+            <span class="legend"><i class="swatch" style="--swatch:#94bda6"></i>Lecture</span><span class="legend"><i class="swatch" style="--swatch:#d6c27b"></i>Lab</span><span class="legend"><i class="swatch" style="--swatch:#88a8bd"></i>Seminar</span><span class="legend"><i class="swatch" style="--swatch:#c8b8d8"></i>Tutorial</span>
+            <span class="foot-spacer"></span><span class="clash-key"><b aria-hidden="true">!</b> Clash</span>
+          </div>
+        </section>
+
+        <aside class="insights" id="analysisPanel" aria-label="Timetable analysis">
+          <section class="panel insight-panel">
+            <div class="section-heading">Weekly workload <small>class hours</small></div>
+            <div class="workload-head"><strong id="workloadValue">—</strong><span>of 30 h suggested</span></div>
+            <div class="progress"><div class="progress-fill" id="workloadProgress"></div></div>
+            <div class="progress-caption"><span>0 h</span><span id="workloadCaption">balanced week</span><span>30 h</span></div>
+            <div class="separator"></div>
+            <div class="section-heading">By class type <small id="classCountLabel">—</small></div>
+            <div class="bar-chart" id="typeBreakdown"></div>
+          </section>
+          <section class="panel insight-panel">
+            <div class="section-heading">Open hours by day <small>8 AM – 6 PM</small></div>
+            <div id="openByDay"></div>
+          </section>
+          <section class="panel insight-panel tip">
+            <div class="section-heading">A small insight <span aria-hidden="true">✳</span></div>
+            <div class="tip-line"><span class="tip-icon" aria-hidden="true">↗</span><span id="tipText">Your week is taking shape.</span></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="classDialog" aria-labelledby="dialogTitle">
+    <form id="classForm">
+      <div class="dialog-head"><div><h2 id="dialogTitle">Add a class</h2><p>Add a block to your weekly timetable.</p></div><button class="icon-button" id="closeDialog" type="button" aria-label="Close dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+      <div class="dialog-body">
+        <div class="field"><label for="className">Class name</label><input id="className" name="name" placeholder="e.g. Human-computer interaction" required maxlength="48"></div>
+        <div class="field-row"><div class="field"><label for="classDay">Day</label><select id="classDay" name="day"><option value="0">Monday</option><option value="1">Tuesday</option><option value="2">Wednesday</option><option value="3">Thursday</option><option value="4">Friday</option><option value="5">Saturday</option></select></div><div class="field"><label for="classType">Class type</label><select id="classType" name="type"><option>Lecture</option><option>Lab</option><option>Seminar</option><option>Tutorial</option></select></div></div>
+        <div class="field-row"><div class="field"><label for="classStart">Starts</label><input id="classStart" name="start" type="time" min="08:00" max="17:30" value="13:00" required></div><div class="field"><label for="classEnd">Ends</label><input id="classEnd" name="end" type="time" min="08:30" max="18:00" value="14:00" required></div></div>
+        <div class="field"><label for="classRoom">Room or location</label><input id="classRoom" name="room" placeholder="e.g. Science building 204" maxlength="40"></div>
+        <div class="dialog-actions"><button class="button" id="cancelDialog" type="button">Cancel</button><button class="button primary" type="submit">Add to timetable</button></div>
+      </div>
+    </form>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const dayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const palette = {
+      Lecture: { bg: '#dcefe5', ink: '#315d48', border: '#80aa91', chart: '#72a186' },
+      Lab: { bg: '#f6edc9', ink: '#786127', border: '#c7ad5a', chart: '#c5a84c' },
+      Seminar: { bg: '#dce9f3', ink: '#365f7d', border: '#7899b0', chart: '#7296ae' },
+      Tutorial: { bg: '#e7e3f2', ink: '#61567e', border: '#a196bf', chart: '#9a8cb8' }
+    };
+    const events = [
+      { id: 1, day: 0, start: '09:00', end: '10:30', name: 'Foundations of Data Science', type: 'Lecture', room: 'North Hall · 204' },
+      { id: 2, day: 0, start: '11:00', end: '12:00', name: 'Linear Algebra II', type: 'Lecture', room: 'Maths · 118' },
+      { id: 3, day: 0, start: '14:00', end: '16:00', name: 'Interaction Design Studio', type: 'Lab', room: 'Design Lab · 02' },
+      { id: 4, day: 1, start: '09:00', end: '10:30', name: 'Systems & Networks', type: 'Lecture', room: 'East Wing · 311' },
+      { id: 5, day: 1, start: '10:00', end: '11:30', name: 'Research Methods', type: 'Seminar', room: 'Library · 3B' },
+      { id: 6, day: 1, start: '13:00', end: '14:00', name: 'Data Science Workshop', type: 'Tutorial', room: 'North Hall · 112' },
+      { id: 7, day: 2, start: '08:30', end: '10:00', name: 'Linear Algebra II', type: 'Lecture', room: 'Maths · 118' },
+      { id: 8, day: 2, start: '11:00', end: '13:00', name: 'Systems & Networks Lab', type: 'Lab', room: 'Tech Centre · 01' },
+      { id: 9, day: 2, start: '15:00', end: '16:00', name: 'Writing for Engineers', type: 'Seminar', room: 'West Hall · 206' },
+      { id: 10, day: 3, start: '10:00', end: '11:30', name: 'Foundations of Data Science', type: 'Lecture', room: 'North Hall · 204' },
+      { id: 11, day: 3, start: '13:00', end: '15:00', name: 'Interaction Design Studio', type: 'Lab', room: 'Design Lab · 02' },
+      { id: 12, day: 4, start: '09:30', end: '11:00', name: 'Research Methods', type: 'Seminar', room: 'Library · 3B' },
+      { id: 13, day: 4, start: '12:00', end: '13:00', name: 'Linear Algebra II', type: 'Tutorial', room: 'Maths · 121' },
+      { id: 14, day: 4, start: '14:00', end: '15:30', name: 'Systems & Networks', type: 'Lecture', room: 'East Wing · 311' },
+      { id: 15, day: 5, start: '10:00', end: '12:00', name: 'Open Design Studio', type: 'Lab', room: 'Design Lab · 02' }
+    ];
+    const startOfDay = 8 * 60;
+    const endOfDay = 18 * 60;
+    const hourHeight = 58;
+    let weekOffset = 0;
+    let viewMode = 'week';
+    let selectedDay = 0;
+    let filterType = 'all';
+
+    const $ = (selector) => document.querySelector(selector);
+    const timeToMinutes = (time) => { const [hours, minutes] = time.split(':').map(Number); return hours * 60 + minutes; };
+    const duration = (event) => timeToMinutes(event.end) - timeToMinutes(event.start);
+    const formatTime = (value) => { const [hour, minute] = value.split(':').map(Number); const suffix = hour >= 12 ? 'PM' : 'AM'; return `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${suffix}`; };
+    const formatHours = (minutes) => `${(minutes / 60).toFixed(minutes % 60 === 0 ? 0 : 1)} h`;
+    const formatShortHours = (minutes) => `${(minutes / 60).toFixed(1)} h`;
+    const weekStart = () => { const date = new Date(2026, 9, 19 + weekOffset * 7); return date; };
+    const formatWeek = () => { const monday = weekStart(); const saturday = new Date(monday); saturday.setDate(saturday.getDate() + 5); const options = { month: 'short', day: 'numeric' }; return `${monday.toLocaleDateString('en-US', options)} – ${saturday.toLocaleDateString('en-US', options)}, ${saturday.getFullYear()}`; };
+    const dateForDay = (day) => { const date = weekStart(); date.setDate(date.getDate() + day); return date; };
+
+    function getClashes() {
+      const clashes = new Set();
+      for (let day = 0; day < 6; day++) {
+        const daily = events.filter((event) => event.day === day).sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+        for (let index = 0; index < daily.length; index++) {
+          for (let next = index + 1; next < daily.length; next++) {
+            if (timeToMinutes(daily[next].start) >= timeToMinutes(daily[index].end)) break;
+            clashes.add(daily[index].id); clashes.add(daily[next].id);
+          }
+        }
+      }
+      return clashes;
+    }
+
+    function getDayStats(day) {
+      const daily = events.filter((event) => event.day === day);
+      const ranges = daily.map((event) => [timeToMinutes(event.start), timeToMinutes(event.end)]).sort((a, b) => a[0] - b[0]);
+      let occupied = 0, longestGap = 0, cursor = startOfDay;
+      for (const [start, end] of ranges) {
+        if (start > cursor) longestGap = Math.max(longestGap, start - cursor);
+        occupied += Math.max(0, end - Math.max(start, cursor));
+        cursor = Math.max(cursor, end);
+      }
+      longestGap = Math.max(longestGap, endOfDay - cursor);
+      return { open: endOfDay - startOfDay - occupied, longestGap, count: daily.length };
+    }
+
+    function setWeekLabel() { $('#weekLabel').textContent = formatWeek(); }
+
+    function renderHeads() {
+      const heads = $('#dayHeads');
+      heads.innerHTML = '<div></div>';
+      const visibleDays = viewMode === 'day' ? [selectedDay] : [0, 1, 2, 3, 4, 5];
+      for (const day of visibleDays) {
+        const date = dateForDay(day);
+        const head = document.createElement('div');
+        head.className = `day-head${weekOffset === 0 && date.toDateString() === new Date(2026, 9, 23).toDateString() ? ' today' : ''}`;
+        head.innerHTML = `<span class="day-name">${dayShort[day]}</span><span class="day-date">${date.getDate()}</span>`;
+        head.title = `Show ${dayNames[day]}`;
+        head.addEventListener('click', () => { selectedDay = day; if (viewMode === 'day') render(); });
+        heads.append(head);
+      }
+      $('.calendar').style.minWidth = viewMode === 'day' ? '330px' : '';
+      $('.day-heads').style.gridTemplateColumns = `48px repeat(${visibleDays.length}, minmax(0, 1fr))`;
+      $('.days-grid').style.gridTemplateColumns = `repeat(${visibleDays.length}, minmax(0, 1fr))`;
+      $('.calendar').style.width = viewMode === 'day' ? '100%' : '';
+      $('.calendar').style.minWidth = viewMode === 'day' ? '420px' : '';
+      $('.panel-subtitle').textContent = viewMode === 'day' ? `${dayNames[selectedDay]} · 8:00 AM – 6:00 PM` : 'Monday to Saturday · 8:00 AM – 6:00 PM';
+    }
+
+    function renderTimes() {
+      const labels = $('#timeLabels');
+      labels.innerHTML = '';
+      for (let hour = 8; hour <= 18; hour++) {
+        if (hour === 18) continue;
+        const label = document.createElement('div');
+        label.className = 'time-label';
+        label.style.top = `${(hour - 8) * hourHeight}px`;
+        label.textContent = `${hour % 12 || 12}${hour >= 12 ? 'pm' : 'am'}`;
+        labels.append(label);
+      }
+    }
+
+    function laneLayout(items) {
+      const ordered = [...items].sort((a, b) => timeToMinutes(a.start) - timeToMinutes(b.start));
+      const clusters = [];
+      let cluster = [], clusterEnd = -1;
+      for (const item of ordered) {
+        const start = timeToMinutes(item.start), end = timeToMinutes(item.end);
+        if (cluster.length && start >= clusterEnd) { clusters.push(cluster); cluster = []; clusterEnd = -1; }
+        cluster.push(item); clusterEnd = Math.max(clusterEnd, end);
+      }
+      if (cluster.length) clusters.push(cluster);
+      const positions = new Map();
+      for (const group of clusters) {
+        const laneEnds = [];
+        for (const item of group) {
+          const start = timeToMinutes(item.start);
+          let lane = laneEnds.findIndex((end) => end <= start);
+          if (lane < 0) lane = laneEnds.length;
+          laneEnds[lane] = timeToMinutes(item.end);
+          positions.set(item.id, { lane, lanes: Math.max(1, laneEnds.length) });
+        }
+        const totalLanes = Math.max(1, laneEnds.length);
+        for (const item of group) positions.get(item.id).lanes = totalLanes;
+      }
+      return positions;
+    }
+
+    function renderCalendar() {
+      renderHeads();
+      renderTimes();
+      const grid = $('#daysGrid');
+      grid.replaceChildren();
+      const visibleDays = viewMode === 'day' ? [selectedDay] : [0, 1, 2, 3, 4, 5];
+      const clashes = getClashes();
+      let visibleCount = 0;
+      for (const day of visibleDays) {
+        const column = document.createElement('div');
+        column.className = 'day-column';
+        const daily = events.filter((event) => event.day === day && (filterType === 'all' || event.type === filterType));
+        visibleCount += daily.length;
+        const layout = laneLayout(daily);
+        for (const event of daily) {
+          const colors = palette[event.type] || palette.Lecture;
+          const start = timeToMinutes(event.start);
+          const height = Math.max(38, duration(event) / 60 * hourHeight - 4);
+          const lane = layout.get(event.id) || { lane: 0, lanes: 1 };
+          const card = document.createElement('article');
+          card.className = `event${clashes.has(event.id) ? ' clash' : ''}`;
+          card.style.cssText = `top:${((start - startOfDay) / 60) * hourHeight + 2}px;height:${height}px;left:calc(${lane.lane * 100 / lane.lanes}% + 3px);width:calc(${100 / lane.lanes}% - 6px);--event-bg:${colors.bg};--event-ink:${colors.ink};--event-border:${colors.border}`;
+          card.setAttribute('aria-label', `${event.name}, ${dayNames[day]}, ${formatTime(event.start)} to ${formatTime(event.end)}${clashes.has(event.id) ? ', schedule clash' : ''}`);
+          card.innerHTML = `<div class="event-name">${escapeHTML(event.name)}</div><div class="event-time">${formatTime(event.start)} – ${formatTime(event.end)}</div><div class="event-room">${escapeHTML(event.room || event.type)}</div>${clashes.has(event.id) ? '<span class="event-badge" title="Overlapping class">!</span>' : ''}`;
+          column.append(card);
+        }
+        grid.append(column);
+      }
+      if (!visibleCount) { const empty = document.createElement('div'); empty.className = 'empty-state'; empty.textContent = 'No classes match this filter'; grid.append(empty); }
+    }
+
+    function escapeHTML(value) { return String(value).replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]); }
+
+    function renderInsights() {
+      const stats = dayNames.map((_, day) => getDayStats(day));
+      const totalClassMinutes = events.reduce((total, event) => total + duration(event), 0);
+      const totalOpenMinutes = stats.reduce((total, day) => total + day.open, 0);
+      const clashIds = getClashes();
+      const classHours = totalClassMinutes / 60;
+      const maxGap = Math.max(...stats.map((day) => day.longestGap));
+      const longestDay = stats.findIndex((day) => day.longestGap === maxGap);
+      $('#scheduledMetric').textContent = formatHours(totalClassMinutes);
+      $('#openMetric').textContent = formatHours(totalOpenMinutes);
+      $('#stretchMetric').textContent = formatHours(maxGap);
+      $('#stretchFoot').textContent = `${dayNames[longestDay]} · a good focus window`;
+      $('#clashMetric').textContent = String(clashIds.size / 2);
+      $('#clashFoot').textContent = clashIds.size ? `${clashIds.size / 2} overlapping pair${clashIds.size > 2 ? 's' : ''} to resolve` : 'Your schedule is clear';
+      $('#clashMetricCard').classList.toggle('warn', clashIds.size > 0);
+      $('#workloadValue').textContent = formatShortHours(totalClassMinutes);
+      $('#workloadProgress').style.width = `${Math.min(100, classHours / 30 * 100)}%`;
+      $('#workloadCaption').textContent = classHours > 30 ? 'above suggested load' : classHours >= 18 ? 'balanced week' : 'room to add classes';
+      $('#classCountLabel').textContent = `${events.length} sessions`;
+      const types = ['Lecture', 'Lab', 'Seminar', 'Tutorial'];
+      const counts = Object.fromEntries(types.map((type) => [type, events.filter((event) => event.type === type).length]));
+      const maxCount = Math.max(1, ...Object.values(counts));
+      $('#typeBreakdown').innerHTML = types.map((type) => `<div class="bar-row"><span class="bar-name">${type}s</span><div class="bar-track"><div class="bar-fill" style="width:${counts[type] / maxCount * 100}%;background:${palette[type].chart}"></div></div><span class="bar-count">${counts[type]}</span></div>`).join('');
+      $('#openByDay').innerHTML = stats.map((day, index) => `<div class="free-row"><span class="free-day">${dayNames[index]}</span><span class="free-hours">${formatShortHours(day.open)}</span></div>`).join('');
+      const tip = clashIds.size
+        ? `${clashIds.size / 2} overlap${clashIds.size > 2 ? 's' : ''} detected. Resolve the marked classes to protect your study time.`
+        : maxGap >= 120
+          ? `${dayNames[longestDay]} has your longest open stretch at ${formatHours(maxGap)}. Keep it for deep work.`
+          : 'Your classes are spread across the week. Try grouping study blocks around your open time.';
+      $('#tipText').textContent = tip;
+    }
+
+    function render() { setWeekLabel(); renderCalendar(); renderInsights(); }
+
+    function showToast(message) {
+      const toast = $('#toast'); toast.textContent = message; toast.classList.add('show');
+      clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 2600);
+    }
+
+    function downloadCSV() {
+      const rows = [['Day', 'Date', 'Start', 'End', 'Class', 'Type', 'Location']];
+      [...events].sort((a, b) => a.day - b.day || timeToMinutes(a.start) - timeToMinutes(b.start)).forEach((event) => {
+        rows.push([dayNames[event.day], dateForDay(event.day).toLocaleDateString('en-US'), event.start, event.end, event.name, event.type, event.room || '']);
+      });
+      const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = `weekwise-${weekStart().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
+      showToast('Timetable exported as CSV');
+    }
+
+    $('#prevWeek').addEventListener('click', () => { weekOffset--; render(); });
+    $('#nextWeek').addEventListener('click', () => { weekOffset++; render(); });
+    $('#todayBtn').addEventListener('click', () => { weekOffset = 0; render(); });
+    $('#categoryFilter').addEventListener('change', (event) => { filterType = event.target.value; renderCalendar(); });
+    document.querySelectorAll('.segment').forEach((button) => button.addEventListener('click', () => {
+      viewMode = button.dataset.view;
+      document.querySelectorAll('.segment').forEach((segment) => { const selected = segment === button; segment.classList.toggle('selected', selected); segment.setAttribute('aria-pressed', String(selected)); });
+      renderCalendar();
+    }));
+    $('#exportBtn').addEventListener('click', downloadCSV);
+    $('#addBtn').addEventListener('click', () => $('#classDialog').showModal());
+    $('#closeDialog').addEventListener('click', () => $('#classDialog').close());
+    $('#cancelDialog').addEventListener('click', () => $('#classDialog').close());
+    $('#classDialog').addEventListener('click', (event) => { if (event.target === $('#classDialog')) $('#classDialog').close(); });
+    $('#classForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const start = form.get('start'), end = form.get('end');
+      if (timeToMinutes(end) <= timeToMinutes(start)) { $('#classEnd').setCustomValidity('End time must be after the start time.'); $('#classEnd').reportValidity(); $('#classEnd').setCustomValidity(''); return; }
+      if (timeToMinutes(start) < startOfDay || timeToMinutes(end) > endOfDay) { showToast('Choose a time between 8:00 AM and 6:00 PM'); return; }
+      events.push({ id: Date.now(), day: Number(form.get('day')), start, end, name: form.get('name').trim(), type: form.get('type'), room: form.get('room').trim() || 'Location not set' });
+      event.currentTarget.reset(); $('#classStart').value = '13:00'; $('#classEnd').value = '14:00';
+      $('#classDialog').close(); render(); showToast('Class added to your timetable');
+    });
+    $('#insightsNav').addEventListener('click', () => { $('#analysisPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    $('#coursesNav').addEventListener('click', () => { $('#categoryFilter').focus(); showToast('Filter your timetable by class type'); });
+    $('#settingsNav').addEventListener('click', () => showToast('Study day: 8:00 AM – 6:00 PM'));
+    render();
+  </script>
+</body>
+</html>
